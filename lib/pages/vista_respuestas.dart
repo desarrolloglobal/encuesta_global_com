@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart'; // Añade esta línea
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -51,6 +51,250 @@ class _VistaRespuestasState extends State<VistaRespuestas> {
         isLoading = false;
       });
     }
+  }
+
+  Future<void> _editarRespuesta(Map<String, dynamic> respuesta) async {
+    String? nuevoValor = await showDialog<String>(
+      context: context,
+      builder: (BuildContext context) {
+        return _buildEditDialog(respuesta);
+      },
+    );
+
+    if (nuevoValor != null) {
+      try {
+        // Determinar qué campo actualizar basado en ntipo
+        String campoActualizar;
+        dynamic valorActualizar;
+
+        switch (respuesta['ntipo']) {
+          case 1:
+            campoActualizar = 'stcorto';
+            valorActualizar = nuevoValor;
+            break;
+          case 2:
+            campoActualizar = 'nnumero';
+            valorActualizar = double.tryParse(nuevoValor);
+            break;
+          case 3:
+            campoActualizar = 'bsino';
+            valorActualizar = nuevoValor.toLowerCase() == 'sí';
+            break;
+          case 4:
+            campoActualizar = 'soption';
+            valorActualizar = nuevoValor;
+            break;
+          case 5:
+            campoActualizar = 'ffecha';
+            valorActualizar = nuevoValor;
+            break;
+          case 6:
+            campoActualizar = 'stlargo';
+            valorActualizar = nuevoValor;
+            break;
+          default:
+            throw Exception('Tipo de respuesta no válido');
+        }
+
+        // Actualizar en la base de datos
+        await Supabase.instance.client
+            .from('dbRespuestas')
+            .update({campoActualizar: valorActualizar}).eq(
+                'id', respuesta['id_respuesta']);
+
+        // Recargar las respuestas
+        await _cargarRespuestas();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Respuesta actualizada correctamente')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error al actualizar la respuesta: $e')),
+          );
+        }
+      }
+    }
+  }
+
+  Widget _buildEditDialog(Map<String, dynamic> respuesta) {
+    final TextEditingController controller = TextEditingController(
+      text: _obtenerRespuesta(respuesta),
+    );
+
+    String titulo = 'Editar Respuesta';
+    Widget campoEdicion;
+
+    switch (respuesta['ntipo']) {
+      case 3: // Para respuestas Sí/No
+        return AlertDialog(
+          title: Text(titulo),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(respuesta['stexto'] ?? 'Sin pregunta'),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop('Sí'),
+                    child: Text('Sí'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop('No'),
+                    child: Text('No'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      case 5: // Para fechas
+        return AlertDialog(
+          title: Text(titulo),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(respuesta['stexto'] ?? 'Sin pregunta'),
+              TextButton(
+                onPressed: () async {
+                  DateTime? fecha = await showDatePicker(
+                    context: context,
+                    initialDate: DateTime.now(),
+                    firstDate: DateTime(2000),
+                    lastDate: DateTime(2100),
+                  );
+                  if (fecha != null) {
+                    Navigator.of(context).pop(fecha.toIso8601String());
+                  }
+                },
+                child: Text('Seleccionar Fecha'),
+              ),
+            ],
+          ),
+        );
+      default:
+        return AlertDialog(
+          title: Text(titulo),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(respuesta['stexto'] ?? 'Sin pregunta'),
+              TextField(
+                controller: controller,
+                decoration: InputDecoration(labelText: 'Nueva respuesta'),
+                maxLines: respuesta['ntipo'] == 6 ? 4 : 1,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(controller.text),
+              child: Text('Guardar'),
+            ),
+          ],
+        );
+    }
+  }
+
+  Widget _buildRespuestasGrouped() {
+    Map<String, List<Map<String, dynamic>>> respuestasAgrupadas = {};
+
+    for (var respuesta in respuestas) {
+      String nombreEncuesta = respuesta['nombreencuesta'] ?? 'Sin nombre';
+      respuestasAgrupadas.putIfAbsent(nombreEncuesta, () => []);
+      respuestasAgrupadas[nombreEncuesta]!.add(respuesta);
+    }
+
+    return ListView.builder(
+      itemCount: respuestasAgrupadas.length,
+      itemBuilder: (context, index) {
+        String nombreEncuesta = respuestasAgrupadas.keys.elementAt(index);
+        List<Map<String, dynamic>> respuestasGrupo =
+            respuestasAgrupadas[nombreEncuesta]!;
+
+        return Card(
+          margin: EdgeInsets.all(8),
+          child: Column(
+            children: [
+              ExpansionTile(
+                title: Text(
+                  nombreEncuesta,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green,
+                  ),
+                ),
+                children: [
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: NeverScrollableScrollPhysics(),
+                    itemCount: respuestasGrupo.length,
+                    itemBuilder: (context, i) {
+                      var respuesta = respuestasGrupo[i];
+                      return Padding(
+                        padding: EdgeInsets.all(8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              respuesta['stexto'] ?? 'Sin pregunta',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    'Respuesta: ${_obtenerRespuesta(respuesta)}',
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: Icon(Icons.edit, color: Colors.green),
+                                  onPressed: () => _editarRespuesta(respuesta),
+                                ),
+                              ],
+                            ),
+                            Divider(),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+              Padding(
+                padding: EdgeInsets.all(8.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: () =>
+                          _generarPDF(nombreEncuesta, respuestasGrupo),
+                      icon: Icon(Icons.print),
+                      label: Text('Imprimir Respuestas'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   String _obtenerRespuesta(Map<String, dynamic> respuesta) {
@@ -153,83 +397,6 @@ class _VistaRespuestasState extends State<VistaRespuestas> {
         backgroundColor: Colors.green,
         foregroundColor: Colors.white,
       ),
-    );
-  }
-
-  Widget _buildRespuestasGrouped() {
-    Map<String, List<Map<String, dynamic>>> respuestasAgrupadas = {};
-
-    for (var respuesta in respuestas) {
-      String nombreEncuesta = respuesta['nombreencuesta'] ?? 'Sin nombre';
-      respuestasAgrupadas.putIfAbsent(nombreEncuesta, () => []);
-      respuestasAgrupadas[nombreEncuesta]!.add(respuesta);
-    }
-
-    return ListView.builder(
-      itemCount: respuestasAgrupadas.length,
-      itemBuilder: (context, index) {
-        String nombreEncuesta = respuestasAgrupadas.keys.elementAt(index);
-        List<Map<String, dynamic>> respuestasGrupo =
-            respuestasAgrupadas[nombreEncuesta]!;
-
-        return Card(
-          margin: EdgeInsets.all(8),
-          child: Column(
-            children: [
-              ExpansionTile(
-                title: Text(
-                  nombreEncuesta,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green,
-                  ),
-                ),
-                children: [
-                  ListView.builder(
-                    shrinkWrap: true,
-                    physics: NeverScrollableScrollPhysics(),
-                    itemCount: respuestasGrupo.length,
-                    itemBuilder: (context, i) {
-                      var respuesta = respuestasGrupo[i];
-                      return Padding(
-                        padding: EdgeInsets.all(8),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              respuesta['stexto'] ?? 'Sin pregunta',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            SizedBox(height: 4),
-                            Text(
-                              'Respuesta: ${_obtenerRespuesta(respuesta)}',
-                            ),
-                            Divider(),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
-              Padding(
-                padding: EdgeInsets.all(8.0),
-                child: ElevatedButton.icon(
-                  onPressed: () => _generarPDF(nombreEncuesta, respuestasGrupo),
-                  icon: Icon(Icons.print),
-                  label: Text('Imprimir Respuestas'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 
