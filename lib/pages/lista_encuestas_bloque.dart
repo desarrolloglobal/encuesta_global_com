@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'offline_state_manager.dart';
-import 'preguntas_page.dart';
 import 'preguntas_bloque.dart';
 
 class ListaEncuestasBloque extends StatefulWidget {

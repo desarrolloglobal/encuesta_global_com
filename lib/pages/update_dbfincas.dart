@@ -3,43 +3,103 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'offline_support.dart';
+import 'widget_pregunta_tipo.dart';
+import 'offline_state_manager.dart';
 
 class UpdateDbFincasPage extends StatefulWidget {
+  final int idEncuesta;
+  final int idForm;
+
+  const UpdateDbFincasPage({
+    Key? key,
+    required this.idEncuesta,
+    required this.idForm,
+  }) : super(key: key);
+
   @override
   _UpdateDbFincasPageState createState() => _UpdateDbFincasPageState();
 }
 
 class _UpdateDbFincasPageState extends State<UpdateDbFincasPage> {
   final _formKey = GlobalKey<FormState>();
-  final _knumeroController = TextEditingController();
-  final _tipoController = TextEditingController();
-  final _nitController = TextEditingController();
-  final _tipoDocController = TextEditingController();
-
+  Map<String, TextEditingController> controllers = {};
   bool _isLoading = false;
 
+  // Definición de los campos del formulario
+  final List<Map<String, dynamic>> formFields = [
+    // {
+    //   'key': 'knumero',
+    //   'label': 'Código de la finca (knumero)',
+    //   'type': 'number',
+    //   'required': true,
+    //   'errorMessage': 'Por favor ingrese el código de la finca'
+    // },
+    {
+      'key': 'stipo',
+      'label': 'Tipo',
+      'type': 'text',
+      'required': true,
+      'errorMessage': 'Por favor ingrese el tipo'
+    },
+    {
+      'key': 'snit',
+      'label': 'NIT',
+      'type': 'text',
+      'required': true,
+      'errorMessage': 'Por favor ingrese el NIT'
+    },
+    {
+      'key': 'ntipo_doc',
+      'label': 'Tipo de documento',
+      'type': 'number',
+      'required': true,
+      'errorMessage': 'Por favor ingrese el tipo de documento'
+    },
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    // Inicializar los controllers para cada campo
+    for (var field in formFields) {
+      controllers[field['key'] as String] = TextEditingController();
+    }
+  }
+
+  @override
+  void dispose() {
+    controllers.forEach((_, controller) => controller.dispose());
+    super.dispose();
+  }
+
   Future<void> _updateDbFincas() async {
+    final idFinca = widget.idForm; // Usar el idForm pasado
+    // Continuar con el proceso de actualización...
+
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
     try {
-      // Prepare the data
-      final data = {
-        'knumero': int.parse(_knumeroController.text),
-        'stipo': _tipoController.text,
-        'snit': _nitController.text,
-        'ntipo_doc': int.parse(_tipoDocController.text),
-      };
+      // Preparar los datos desde los controllers
+      final Map<String, dynamic> data = {};
+      formFields.forEach((field) {
+        final key = field['key'] as String;
+        final controller = controllers[key];
+        if (controller != null) {
+          if (field['type'] == 'number') {
+            data[key] = int.parse(controller.text);
+          } else {
+            data[key] = controller.text;
+          }
+        }
+      });
 
-      // Update locally first
       await _updateLocally(data);
-
-      // Try to update in Supabase
       await _updateInSupabase(data);
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Actualización exitosa')),
+        const SnackBar(content: Text('Actualización exitosa')),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -52,11 +112,12 @@ class _UpdateDbFincasPageState extends State<UpdateDbFincasPage> {
 
   Future<void> _updateLocally(Map<String, dynamic> data) async {
     final prefs = await SharedPreferences.getInstance();
-    final localData = json.decode(prefs.getString('dbfincas') ?? '[]');
-    
-    final index = localData.indexWhere((item) => item['knumero'] == data['knumero']);
+    List<dynamic> localData = json.decode(prefs.getString('dbfincas') ?? '[]');
+
+    final index =
+        localData.indexWhere((item) => item['knumero'] == widget.idForm);
     if (index != -1) {
-      localData[index] = {...localData[index], ...data};
+      localData[index] = {...localData[index] as Map<String, dynamic>, ...data};
     } else {
       localData.add(data);
     }
@@ -66,17 +127,15 @@ class _UpdateDbFincasPageState extends State<UpdateDbFincasPage> {
 
   Future<void> _updateInSupabase(Map<String, dynamic> data) async {
     try {
+      final Map<String, dynamic> updateData = Map<String, dynamic>.from(data);
+      updateData.remove('knumero');
+
       await Supabase.instance.client
           .from('dbfincas')
-          .update({
-            'stipo': data['stipo'],
-            'snit': data['snit'],
-            'ntipo_doc': data['ntipo_doc'],
-          })
-          .eq('knumero', data['knumero']);
+          .update(updateData)
+          .eq('knumero', widget.idForm);
     } catch (e) {
       print('Error updating Supabase: $e');
-      // Save the update for later synchronization
       await OfflineSupport.saveResponseLocally({
         'table': 'dbfincas',
         'action': 'update',
@@ -85,65 +144,40 @@ class _UpdateDbFincasPageState extends State<UpdateDbFincasPage> {
     }
   }
 
+  Widget _buildFormField(Map<String, dynamic> field) {
+    final key = field['key'] as String;
+    return TextFormField(
+      controller: controllers[key],
+      decoration: InputDecoration(labelText: field['label'] as String),
+      keyboardType:
+          field['type'] == 'number' ? TextInputType.number : TextInputType.text,
+      validator: (value) {
+        if (field['required'] == true && (value == null || value.isEmpty)) {
+          return field['errorMessage'] as String;
+        }
+        return null;
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Actualizar dbfincas')),
+      appBar: AppBar(title: const Text('Actualizar dbfincas')),
       body: Padding(
-        padding: EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              TextFormField(
-                controller: _knumeroController,
-                decoration: InputDecoration(labelText: 'Código de la finca (knumero)'),
-                keyboardType: TextInputType.number,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Por favor ingrese el código de la finca';
-                  }
-                  return null;
-                },
-              ),
-              TextFormField(
-                controller: _tipoController,
-                decoration: InputDecoration(labelText: 'Tipo'),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Por favor ingrese el tipo';
-                  }
-                  return null;
-                },
-              ),
-              TextFormField(
-                controller: _nitController,
-                decoration: InputDecoration(labelText: 'NIT'),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Por favor ingrese el NIT';
-                  }
-                  return null;
-                },
-              ),
-              TextFormField(
-                controller: _tipoDocController,
-                decoration: InputDecoration(labelText: 'Tipo de documento'),
-                keyboardType: TextInputType.number,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Por favor ingrese el tipo de documento';
-                  }
-                  return null;
-                },
-              ),
-              SizedBox(height: 20),
+              ...formFields.map((field) => _buildFormField(field)),
+              const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: _isLoading ? null : _updateDbFincas,
                 child: _isLoading
-                    ? CircularProgressIndicator()
-                    : Text('Actualizar dbfincas'),
+                    ? const CircularProgressIndicator()
+                    : const Text('Actualizar dbfincas'),
               ),
             ],
           ),

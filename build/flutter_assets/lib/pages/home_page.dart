@@ -3,8 +3,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'offline_support.dart';
 import 'lista_encuestas.dart';
 import 'lista_encuestas_bloque.dart';
-import 'update_dbfincas.dart';
+import 'lista_encuestas_dbfincas.dart';
 import 'offline_state_manager.dart';
+import 'descargadetalle.dart';
 
 class HomePage extends StatefulWidget {
   @override
@@ -50,20 +51,43 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _loadUserData() async {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user != null) {
-      final response = await Supabase.instance.client
-          .from('users')
-          .select('name, email')
-          .eq('id', user.id)
-          .single();
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user != null) {
+        print('ID del usuario actual: ${user.id}'); // Debug
 
+        // Intentamos obtener los datos
+        final response = await Supabase.instance.client
+            .from('users')
+            .select('id, name, email')
+            .eq('id', user.id)
+            .maybeSingle();
+
+        print('Respuesta de Supabase: $response'); // Debug
+
+        setState(() {
+          if (response != null) {
+            userName = response['name'] ?? 'Usuario';
+            userEmail = response['email'] ?? user.email ?? 'No disponible';
+            print(
+                'Datos encontrados - Nombre: $userName, Email: $userEmail'); // Debug
+          } else {
+            userName = 'Usuario';
+            userEmail = user.email ?? 'No disponible';
+            print('No se encontraron datos para el usuario'); // Debug
+          }
+        });
+
+        await OfflineStateManager.saveIdUser(user.id);
+      } else {
+        print('No hay usuario autenticado'); // Debug
+      }
+    } catch (e) {
+      print('Error al cargar datos del usuario: $e');
       setState(() {
-        userName = response['name'] ?? 'Usuario';
-        userEmail = response['email'] ?? user.email ?? 'No disponible';
+        userName = 'Usuario';
+        userEmail = 'No disponible';
       });
-      // Guarda el idUser
-      await OfflineStateManager.saveIdUser(user.id);
     }
   }
 
@@ -201,11 +225,11 @@ class _HomePageState extends State<HomePage> {
                   );
                 }),
                 SizedBox(height: 16),
-                _buildButton('Actualizar Finca test', Icons.edit, () {
+                _buildButton('Actualizar Finca test dbfica', Icons.edit, () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (context) => UpdateDbFincasPage()),
+                        builder: (context) => ListaEncuestasFinca()),
                   );
                 }),
                 SizedBox(height: 16),
@@ -214,6 +238,13 @@ class _HomePageState extends State<HomePage> {
                 _buildButton('Ver respuestas', Icons.list, () {}),
                 SizedBox(height: 16),
                 _buildButton('Ver reportes', Icons.bar_chart, () {}),
+                SizedBox(height: 16),
+                _buildButton('Descargar Detalle', Icons.download, () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => DescargaDetalle()),
+                  );
+                }),
                 SizedBox(height: 16),
                 _buildButton(
                     'Salir', Icons.exit_to_app, () => _signOut(context)),
