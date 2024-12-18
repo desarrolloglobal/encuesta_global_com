@@ -6,6 +6,7 @@ import 'lista_encuestas_bloque.dart';
 import 'lista_encuestas_dbfincas.dart';
 import 'offline_state_manager.dart';
 import 'descargadetalle.dart';
+import 'vista_respuestas.dart';
 
 class HomePage extends StatefulWidget {
   @override
@@ -235,7 +236,19 @@ class _HomePageState extends State<HomePage> {
                 SizedBox(height: 16),
                 _buildButton('Crear Entrevistados', Icons.person_add, () {}),
                 SizedBox(height: 16),
-                _buildButton('Ver respuestas', Icons.list, () {}),
+                _buildButton('Ver respuestas', Icons.list, () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => VistaRespuestas(
+                        idForm: int.parse(selectedDbForm ?? '0'),
+                        idUser:
+                            Supabase.instance.client.auth.currentUser?.id ?? '',
+                        userName: userName,
+                      ),
+                    ),
+                  );
+                }),
                 SizedBox(height: 16),
                 _buildButton('Ver reportes', Icons.bar_chart, () {}),
                 SizedBox(height: 16),

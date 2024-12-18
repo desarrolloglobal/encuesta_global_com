@@ -31,7 +31,7 @@ class _VistaRespuestasState extends State<VistaRespuestas> {
   Future<void> _cargarRespuestas() async {
     try {
       final response = await Supabase.instance.client
-          .from('vista_respuestas_1')
+          .from('vista_respuestas_2')
           .select()
           .eq('nform', widget.idForm)
           .order('nombreencuesta');
@@ -48,8 +48,29 @@ class _VistaRespuestasState extends State<VistaRespuestas> {
     }
   }
 
+  String _obtenerRespuesta(Map<String, dynamic> respuesta) {
+    final int ntipo = respuesta['ntipo'] ?? 0;
+
+    switch (ntipo) {
+      case 1:
+        return respuesta['stcorto']?.toString() ?? 'Sin respuesta';
+      case 2:
+        return respuesta['nnumero']?.toString() ?? 'Sin respuesta';
+      case 3:
+        return respuesta['bsino'] == true ? 'Sí' : 'No';
+      case 4:
+        return respuesta['soption']?.toString() ?? 'Sin respuesta';
+      case 5:
+        // Puedes formatear la fecha si lo deseas
+        return respuesta['ffecha']?.toString() ?? 'Sin respuesta';
+      case 6:
+        return respuesta['stlargo']?.toString() ?? 'Sin respuesta';
+      default:
+        return 'Tipo de respuesta no reconocido';
+    }
+  }
+
   Widget _buildRespuestasGrouped() {
-    // Agrupar respuestas por nombreencuesta
     Map<String, List<Map<String, dynamic>>> respuestasAgrupadas = {};
 
     for (var respuesta in respuestas) {
@@ -87,7 +108,6 @@ class _VistaRespuestasState extends State<VistaRespuestas> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Mostrar el nombre de la pregunta (stexto)
                         Text(
                           respuesta['stexto'] ?? 'Sin pregunta',
                           style: TextStyle(
@@ -95,9 +115,8 @@ class _VistaRespuestasState extends State<VistaRespuestas> {
                           ),
                         ),
                         SizedBox(height: 4),
-                        // Mostrar la respuesta (soption)
                         Text(
-                          'Respuesta: ${respuesta['soption'] ?? 'Sin respuesta'}',
+                          'Respuesta: ${_obtenerRespuesta(respuesta)}',
                         ),
                         Divider(),
                       ],
