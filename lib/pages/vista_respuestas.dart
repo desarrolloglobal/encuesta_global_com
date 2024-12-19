@@ -36,7 +36,7 @@ class _VistaRespuestasState extends State<VistaRespuestas> {
   Future<void> _cargarRespuestas() async {
     try {
       final response = await Supabase.instance.client
-          .from('vista_respuestas_2')
+          .from('vista_respuestas_1')
           .select()
           .eq('nform', widget.idForm)
           .order('nombreencuesta');
@@ -63,7 +63,6 @@ class _VistaRespuestasState extends State<VistaRespuestas> {
 
     if (nuevoValor != null) {
       try {
-        // Determinar qué campo actualizar basado en ntipo
         String campoActualizar;
         dynamic valorActualizar;
 
@@ -96,13 +95,11 @@ class _VistaRespuestasState extends State<VistaRespuestas> {
             throw Exception('Tipo de respuesta no válido');
         }
 
-        // Actualizar en la base de datos
         await Supabase.instance.client
             .from('dbRespuestas')
             .update({campoActualizar: valorActualizar}).eq(
                 'id', respuesta['id_respuesta']);
 
-        // Recargar las respuestas
         await _cargarRespuestas();
 
         if (mounted) {
@@ -126,7 +123,6 @@ class _VistaRespuestasState extends State<VistaRespuestas> {
     );
 
     String titulo = 'Editar Respuesta';
-    Widget campoEdicion;
 
     switch (respuesta['ntipo']) {
       case 3: // Para respuestas Sí/No
@@ -213,87 +209,94 @@ class _VistaRespuestasState extends State<VistaRespuestas> {
       respuestasAgrupadas[nombreEncuesta]!.add(respuesta);
     }
 
-    return ListView.builder(
-      itemCount: respuestasAgrupadas.length,
-      itemBuilder: (context, index) {
-        String nombreEncuesta = respuestasAgrupadas.keys.elementAt(index);
-        List<Map<String, dynamic>> respuestasGrupo =
-            respuestasAgrupadas[nombreEncuesta]!;
+    return Center(
+      child: Container(
+        constraints: BoxConstraints(maxWidth: 600),
+        child: ListView.builder(
+          itemCount: respuestasAgrupadas.length,
+          itemBuilder: (context, index) {
+            String nombreEncuesta = respuestasAgrupadas.keys.elementAt(index);
+            List<Map<String, dynamic>> respuestasGrupo =
+                respuestasAgrupadas[nombreEncuesta]!;
 
-        return Card(
-          margin: EdgeInsets.all(8),
-          child: Column(
-            children: [
-              ExpansionTile(
-                title: Text(
-                  nombreEncuesta,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green,
-                  ),
-                ),
+            return Card(
+              margin: EdgeInsets.all(8),
+              child: Column(
                 children: [
-                  ListView.builder(
-                    shrinkWrap: true,
-                    physics: NeverScrollableScrollPhysics(),
-                    itemCount: respuestasGrupo.length,
-                    itemBuilder: (context, i) {
-                      var respuesta = respuestasGrupo[i];
-                      return Padding(
-                        padding: EdgeInsets.all(8),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              respuesta['stexto'] ?? 'Sin pregunta',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            SizedBox(height: 4),
-                            Row(
+                  ExpansionTile(
+                    title: Text(
+                      nombreEncuesta,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green,
+                      ),
+                    ),
+                    children: [
+                      ListView.builder(
+                        shrinkWrap: true,
+                        physics: NeverScrollableScrollPhysics(),
+                        itemCount: respuestasGrupo.length,
+                        itemBuilder: (context, i) {
+                          var respuesta = respuestasGrupo[i];
+                          return Padding(
+                            padding: EdgeInsets.all(8),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Expanded(
-                                  child: Text(
-                                    'Respuesta: ${_obtenerRespuesta(respuesta)}',
+                                Text(
+                                  respuesta['stexto'] ?? 'Sin pregunta',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
-                                IconButton(
-                                  icon: Icon(Icons.edit, color: Colors.green),
-                                  onPressed: () => _editarRespuesta(respuesta),
+                                SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        'Respuesta: ${_obtenerRespuesta(respuesta)}',
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon:
+                                          Icon(Icons.edit, color: Colors.green),
+                                      onPressed: () =>
+                                          _editarRespuesta(respuesta),
+                                    ),
+                                  ],
                                 ),
+                                Divider(),
                               ],
                             ),
-                            Divider(),
-                          ],
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                  Padding(
+                    padding: EdgeInsets.all(8.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed: () =>
+                              _generarPDF(nombreEncuesta, respuestasGrupo),
+                          icon: Icon(Icons.print),
+                          label: Text('Imprimir Respuestas'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                          ),
                         ),
-                      );
-                    },
+                      ],
+                    ),
                   ),
                 ],
               ),
-              Padding(
-                padding: EdgeInsets.all(8.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    ElevatedButton.icon(
-                      onPressed: () =>
-                          _generarPDF(nombreEncuesta, respuestasGrupo),
-                      icon: Icon(Icons.print),
-                      label: Text('Imprimir Respuestas'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
-      },
+            );
+          },
+        ),
+      ),
     );
   }
 
@@ -365,9 +368,7 @@ class _VistaRespuestasState extends State<VistaRespuestas> {
       ),
     );
 
-    // Manejo diferenciado según la plataforma
     if (kIsWeb) {
-      // Para web
       final bytes = await pdf.save();
       final blob = html.Blob([bytes], 'application/pdf');
       final url = html.Url.createObjectUrlFromBlob(blob);
@@ -380,24 +381,10 @@ class _VistaRespuestasState extends State<VistaRespuestas> {
       html.document.body?.children.remove(anchor);
       html.Url.revokeObjectUrl(url);
     } else {
-      // Para Android y otras plataformas
       await Printing.layoutPdf(
         onLayout: (PdfPageFormat format) async => pdf.save(),
       );
     }
-  }
-
-  Widget _buildPrintButton(
-      String nombreEncuesta, List<Map<String, dynamic>> respuestasGrupo) {
-    return ElevatedButton.icon(
-      onPressed: () => _generarPDF(nombreEncuesta, respuestasGrupo),
-      icon: Icon(Icons.print),
-      label: Text('Imprimir Respuestas'),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.green,
-        foregroundColor: Colors.white,
-      ),
-    );
   }
 
   @override

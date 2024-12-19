@@ -236,7 +236,7 @@ class _HomePageState extends State<HomePage> {
                 SizedBox(height: 16),
                 _buildButton('Crear Entrevistados', Icons.person_add, () {}),
                 SizedBox(height: 16),
-                _buildButton('Ver respuestas', Icons.list, () {
+                _buildButton('Ver respuestas New', Icons.list, () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
