@@ -93,14 +93,25 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _loadDbForms() async {
-    final response = await Supabase.instance.client
-        .from('dbForms')
-        .select('id, sLegal')
-        .order('sLegal');
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user != null) {
+        final response = await Supabase.instance.client
+            .from('dbForms')
+            .select('id, sLegal')
+            .eq('iduser', user.id) // Filtrar por el ID del usuario actual
+            .order('sLegal');
 
-    setState(() {
-      dbFormsList = response;
-    });
+        setState(() {
+          dbFormsList = response;
+        });
+      }
+    } catch (e) {
+      print('Error al cargar las fincas: $e');
+      setState(() {
+        dbFormsList = [];
+      });
+    }
   }
 
   Future<void> _signOut(BuildContext context) async {

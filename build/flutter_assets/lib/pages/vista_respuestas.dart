@@ -36,7 +36,7 @@ class _VistaRespuestasState extends State<VistaRespuestas> {
   Future<void> _cargarRespuestas() async {
     try {
       final response = await Supabase.instance.client
-          .from('vista_respuestas_2')
+          .from('vista_respuestas_1')
           .select()
           .eq('nform', widget.idForm)
           .order('nombreencuesta');
