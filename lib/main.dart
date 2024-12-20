@@ -7,20 +7,22 @@ import 'pages/home_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  try {
+    WidgetsFlutterBinding.ensureInitialized();
+    await dotenv.load(fileName: ".env");
 
-  // Load environment variables
-  await dotenv.load(fileName: ".env");
+    await Supabase.initialize(
+        url: dotenv.env['SUPABASE_URL']!,
+        anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
+        debug: true // Añade esto para ver más logs
+        );
 
-  await Supabase.initialize(
-    url: dotenv.env['SUPABASE_URL']!,
-    anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
-  );
-
-  // Inicializar SharedPreferences
-  await SharedPreferences.getInstance();
-
-  runApp(MyApp());
+    await SharedPreferences.getInstance();
+    runApp(MyApp());
+  } catch (e) {
+    print('Error en la inicialización: $e');
+    // Manejo del error
+  }
 }
 
 class MyApp extends StatelessWidget {
