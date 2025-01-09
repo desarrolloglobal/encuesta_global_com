@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'dart:async';
@@ -101,5 +102,33 @@ class OfflineStateManager {
   static Future<bool> clearAll() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.clear();
+=======
+import 'dart:async';
+
+class OfflineStateManager {
+  static final OfflineStateManager _instance = OfflineStateManager._internal();
+  factory OfflineStateManager() => _instance;
+  OfflineStateManager._internal();
+
+  // Stream controllers
+  final _userIdController = StreamController<String>.broadcast();
+  
+  // Current values
+  String? _currentUserId;
+
+  // Getters
+  Stream<String> get userIdStream => _userIdController.stream;
+  String? get currentUserId => _currentUserId;
+
+  // Setters
+  void setUserId(String userId) {
+    _currentUserId = userId;
+    _userIdController.add(userId);
+  }
+
+  // Cleanup
+  void dispose() {
+    _userIdController.close();
+>>>>>>> 0f5210f5847071cc155d66aa2117f7a0eba6918b
   }
 }

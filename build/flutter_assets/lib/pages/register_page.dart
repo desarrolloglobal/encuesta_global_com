@@ -125,7 +125,7 @@ class _RegisterPageState extends State<RegisterPage> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            'Aplicación de Registros Caracterizaciones',
+            'Aplicación de Aforos',
             style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           ),
           SizedBox(height: 24),

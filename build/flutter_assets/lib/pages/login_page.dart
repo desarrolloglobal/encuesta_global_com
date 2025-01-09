@@ -96,7 +96,7 @@ class _LoginPageState extends State<LoginPage> {
           ),
           SizedBox(height: 24),
           Text(
-            'Software de Registros Caracterizaciones',
+            'Software de Aforos',
             style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           ),
           SizedBox(height: 24),
